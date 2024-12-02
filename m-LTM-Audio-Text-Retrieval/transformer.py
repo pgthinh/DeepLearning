@@ -6,7 +6,7 @@ import torch.nn.functional as F
 class MultiHeadedAttention(nn.Module):
     def __init__(self):
         super(MultiHeadedAttention, self).__init__()
-        self.embed_dim = 2048
+        self.embed_dim = 1024
         self.num_heads = 1
         assert self.embed_dim % self.num_heads == 0
         self.head_dim = self.embed_dim // self.num_heads
@@ -64,7 +64,7 @@ class MultiHeadedAttention(nn.Module):
 class Transformer(nn.Module):
     def __init__(self):
         super(Transformer, self).__init__()
-        self.embed_dim = 2048
+        self.embed_dim = 1024
         dropout = 0.3
 
         self.cross_attn = MultiHeadedAttention()
