@@ -129,6 +129,6 @@ class ASE(nn.Module):
             caption_embed = l2norm(caption_embed_raw)
 
         if self.local:
-            audio_encoded_local_pooled = self.pool_frames(caption_embed_raw,audio_encoded_local)
+            audio_encoded_local_pooled = self.pool_frames(caption_embed_raw,audio_embed_local)
             print(audio_encoded_local_pooled.shape)
         return audio_embed, caption_embed
