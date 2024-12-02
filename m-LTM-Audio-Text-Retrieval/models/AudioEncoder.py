@@ -392,6 +392,7 @@ class ResNet38(nn.Module):
 
         super(ResNet38, self).__init__()
         self.bn0 = nn.BatchNorm2d(64)
+        self.local = config.cnn_encoder.local
 
         sr = config.wav.sr
         window_size = config.wav.window_size
@@ -459,10 +460,15 @@ class ResNet38(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training, inplace=True)
         x = torch.mean(x, dim=3)  # batch x channel x time
 
+        
         (x1, _) = torch.max(x, dim=2)  # max in time
         x2 = torch.mean(x, dim=2)  # average in time
-        x = x1 + x2  # batch x channel (512)
+        x_global = x1 + x2  # batch x channel (512)
         # x = F.relu_(self.fc1(x))
         # x = F.dropout(x, p=self.dropout, training=self.training)
 
-        return x
+        if self.local:
+            
+            return x, x_global 
+        
+        return x_global
