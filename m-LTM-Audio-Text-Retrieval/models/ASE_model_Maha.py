@@ -13,13 +13,13 @@ from tools.utils import l2norm
 from models.AudioEncoder import Cnn10, ResNet38, Cnn14
 from models.TextEncoder import BertEncoder
 from models.BERT_Config import MODELS
-
+from transformer import Transformer 
 
 class AudioEnc(nn.Module):
 
     def __init__(self, config):
         super(AudioEnc, self).__init__()
-
+        self.local = config.cnn_encoder.local
         if config.cnn_encoder.model == 'Cnn10':
             self.audio_enc = Cnn10(config)
         elif config.cnn_encoder.model == 'ResNet38':
@@ -44,6 +44,9 @@ class AudioEnc(nn.Module):
                 param.requires_grad = False
 
     def forward(self, inputs):
+        if self.local:
+            audio_encoded_local, audio_encoded = self.audio_enc(inputs)
+            return audio_encoded_local, audio_encoded
         audio_encoded = self.audio_enc(inputs)
         return audio_encoded
 
@@ -52,7 +55,7 @@ class ASE(nn.Module):
 
     def __init__(self, config):
         super(ASE, self).__init__()
-
+        self.local = config.cnn_encoder.local
         self.l2 = config.training.l2
         joint_embed = config.joint_embed
 
@@ -70,6 +73,9 @@ class ASE(nn.Module):
                 nn.ReLU(),
                 nn.Linear(joint_embed * 2, joint_embed)
             )
+
+        if self.local:
+            self.pool_frames = Transformer()
 
         # self.audio_gated_linear = nn.Linear(joint_embed, joint_embed)
         if config.text_encoder == 'bert':
@@ -99,8 +105,17 @@ class ASE(nn.Module):
             audio_encoded = None
             audio_embed = None
         else:
-            audio_encoded = self.encode_audio(audios)     # batch x channel
-            audio_embed = self.audio_linear(audio_encoded)
+            if self.local:
+                audio_encoded_local, audio_encoded = self.encode_audio(audios)
+                audio_encoded_local = audio_encoded_local.permute(0,2,1)
+                audio_embed = self.audio_linear(audio_encoded)
+                audio_embed_local = self.audio_linear(audio_encoded_local)
+                print(audio_embed_local.shape, audio_embed.shape)
+            else:   
+                audio_encoded = self.encode_audio(audios)     # batch x channel
+                print("hello world!")
+
+                audio_embed = self.audio_linear(audio_encoded)
 
             audio_embed = l2norm(audio_embed)
 
@@ -110,8 +125,11 @@ class ASE(nn.Module):
             caption_embed = None
         else:
             caption_encoded = self.encode_text(input_ids, attention_mask)
-            caption_embed = self.text_linear(caption_encoded)
+            caption_embed_raw = self.text_linear(caption_encoded)
 
-            caption_embed = l2norm(caption_embed)
+            caption_embed = l2norm(caption_embed_raw)
 
+        if self.local:
+            audio_encoded_local_pooled = self.pool_frames(caption_embed_raw,audio_encoded_local)
+            print(audio_encoded_local_pooled.shape)
         return audio_embed, caption_embed
