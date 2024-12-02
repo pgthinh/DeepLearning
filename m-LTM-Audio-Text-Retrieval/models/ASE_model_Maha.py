@@ -113,7 +113,6 @@ class ASE(nn.Module):
                 print(audio_embed_local.shape, audio_embed.shape)
             else:   
                 audio_encoded = self.encode_audio(audios)     # batch x channel
-                print("hello world!")
 
                 audio_embed = self.audio_linear(audio_encoded)
 
