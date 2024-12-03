@@ -131,4 +131,7 @@ class ASE(nn.Module):
         if self.local:
             audio_encoded_local_pooled = self.pool_frames(caption_embed_raw,audio_embed_local)
             print(audio_encoded_local_pooled.shape)
+            audio_encoded_local_pooled = torch.nn.functional.normalize(audio_encoded_local_pooled, p=2.0, dim=2)
+            return audio_encoded_local_pooled, caption_embed
+
         return audio_embed, caption_embed
