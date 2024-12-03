@@ -227,7 +227,10 @@ class MahalalobisLoss(nn.Module):
         u, s, v =torch.svd(M)
         reg = torch.sum(s)
 
-        audio_matrix = audio_emb.unsqueeze(0).repeat(audio_emb.size(0),1,1)
+        if len(audio_emb.shape) == 2:
+            audio_matrix = audio_emb.unsqueeze(0).repeat(audio_emb.size(0),1,1)
+        else:
+            audio_matrix = audio_emb.permute(1,0,2)
         text_matrix = text_emb.unsqueeze(1).repeat(1, text_emb.size(0), 1)
 
         pairwise_dist = audio_matrix - text_matrix
