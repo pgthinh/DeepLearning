@@ -220,8 +220,12 @@ def validate(data_loader, model, device, writer, epoch, M):
 
             audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
             if audio_embs is None:
-                audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
-                cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                if len(audio_embeds.shape) == 2:
+                    audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
+                    cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                else:
+                    audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1), audio_embeds.size(2)))
+                    cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
 
             audio_embs[indexs] = audio_embeds.cpu().numpy()
             cap_embs[indexs] = caption_embeds.cpu().numpy()

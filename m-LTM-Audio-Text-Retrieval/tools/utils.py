@@ -165,7 +165,10 @@ def a2t_ot(audio_embs, cap_embs, M, train_data=False):
     # gap = torch.pow(mean_cap-mean_audio, 2).sum().sqrt()
 
     # Mahanalobis distance ####################################
-    pairwise_dist = audio.unsqueeze(1).repeat(1,cap_embs.size(0),1) - cap_embs.unsqueeze(0).repeat(audio.size(0), 1,1)
+    if len(audio.shape) == 2:
+        pairwise_dist = audio.unsqueeze(1).repeat(1,cap_embs.size(0),1) - cap_embs.unsqueeze(0).repeat(audio.size(0), 1,1)
+    else:
+        pairwise_dist = audio - cap_embs.unsqueeze(0).repeat(audio.size(0), 1,1)
     t_pairwise_dist = pairwise_dist.transpose(1,2)
     M_dist = torch.einsum("ijk,ikj,kk->ij", pairwise_dist.float(), t_pairwise_dist.float(), M.float().cpu())
     M_dist = torch.sqrt(M_dist)
@@ -217,7 +220,10 @@ def t2a_ot(audio_embs, cap_embs, M, train_data=False):
     audio = torch.tensor(audio)
 
     # Mahanalobis distance ####################################
-    pairwise_dist = cap_embs.unsqueeze(1).repeat(1,audio.size(0),1) - audio.unsqueeze(0).repeat(cap_embs.size(0), 1,1)
+    if len(audio.shape) == 2:
+        pairwise_dist = cap_embs.unsqueeze(1).repeat(1,audio.size(0),1) - audio.unsqueeze(0).repeat(cap_embs.size(0), 1,1)
+    else:
+        pairwise_dist = cap_embs.unsqueeze(1).repeat(1,audio.size(0),1) - audio.permute(1,0,2)
     t_pairwise_dist = pairwise_dist.transpose(1,2)
     M_dist = torch.einsum("ijk,ikj,kk->ij", pairwise_dist.float(), t_pairwise_dist.float(), M.float().cpu())
     M_dist = torch.sqrt(M_dist)
