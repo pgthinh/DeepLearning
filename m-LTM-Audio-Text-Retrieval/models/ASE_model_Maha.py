@@ -110,7 +110,7 @@ class ASE(nn.Module):
                 audio_encoded_local = audio_encoded_local.permute(0,2,1)
                 audio_embed = self.audio_linear(audio_encoded)
                 audio_embed_local = self.audio_linear(audio_encoded_local)
-                print(audio_embed_local.shape, audio_embed.shape)
+                # print(audio_embed_local.shape, audio_embed.shape)
             else:   
                 audio_encoded = self.encode_audio(audios)     # batch x channel
 
@@ -129,9 +129,10 @@ class ASE(nn.Module):
             caption_embed = l2norm(caption_embed_raw)
 
         if self.local:
+            # print("========> audio_local:", audio_embed_local.shape)
             audio_encoded_local_pooled = self.pool_frames(caption_embed_raw,audio_embed_local)
-            print(audio_encoded_local_pooled.shape)
+            # print(audio_encoded_local_pooled.shape)
             audio_encoded_local_pooled = torch.nn.functional.normalize(audio_encoded_local_pooled, p=2.0, dim=2)
-            return audio_encoded_local_pooled, caption_embed
+            return audio_embed_local, audio_encoded_local_pooled, caption_embed
 
         return audio_embed, caption_embed
