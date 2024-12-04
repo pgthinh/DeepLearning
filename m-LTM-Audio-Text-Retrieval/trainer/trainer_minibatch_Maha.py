@@ -108,50 +108,50 @@ def train(config):
         start_time = time.time()
         model.train()
 
-        # for batch_id, batch_data in tqdm(enumerate(train_loader), total=len(train_loader)):
+        for batch_id, batch_data in tqdm(enumerate(train_loader), total=len(train_loader)):
 
-        #     audios, captions, audio_ids, _ = batch_data
-        #     # move data to GPU
-        #     audios = audios.to(device)
-        #     audio_ids = audio_ids.to(device)
+            audios, captions, audio_ids, _ = batch_data
+            # move data to GPU
+            audios = audios.to(device)
+            audio_ids = audio_ids.to(device)
 
-        #     tokenized = tokenizer(captions, add_special_tokens=True,padding=True, return_tensors='pt')
-        #     input_ids = tokenized['input_ids'].to(device)
-        #     attention_mask = tokenized['attention_mask'].to(device)
-        #     _, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
+            tokenized = tokenizer(captions, add_special_tokens=True,padding=True, return_tensors='pt')
+            input_ids = tokenized['input_ids'].to(device)
+            attention_mask = tokenized['attention_mask'].to(device)
+            _, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
             
-        #     M = model.L
-        #     loss = criterion(audio_embeds, caption_embeds, M)
-        #     loss = torch.mean(loss)
+            M = model.L
+            loss = criterion(audio_embeds, caption_embeds, M)
+            loss = torch.mean(loss)
 
-        #     optimizer.zero_grad()
-        #     loss.backward()
-        #     torch.nn.utils.clip_grad_norm_(model.parameters(), config.training.clip_grad)
-        #     optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.training.clip_grad)
+            optimizer.step()
 
-        #     # constraint matrix L#################
-        #     if torch.cuda.device_count()>1:
-        #         M = model.module.L
-        #     else: 
-        #         M = model.L
-        #     M = torch.nan_to_num(M)
-        #     u, s, v =torch.svd(M)
-        #     s = torch.clamp(s, min=0)
-        #     M_constraint = u@torch.diag(s)@v.t()
-        #     model.L.data = M_constraint
-        #     ######################################
+            # constraint matrix L#################
+            if torch.cuda.device_count()>1:
+                M = model.module.L
+            else: 
+                M = model.L
+            M = torch.nan_to_num(M)
+            u, s, v =torch.svd(M)
+            s = torch.clamp(s, min=0)
+            M_constraint = u@torch.diag(s)@v.t()
+            model.L.data = M_constraint
+            ######################################
             
-        #     epoch_loss.update(loss.cpu().item())
+            epoch_loss.update(loss.cpu().item())
         
-        # small_eigen = s<1
-        # num_small_eigen = torch.sum(small_eigen)
-        # writer.add_scalar('train/num_small_eigen', num_small_eigen.item(), epoch)
-        # writer.add_scalar('train/loss', epoch_loss.avg, epoch)
+        small_eigen = s<1
+        num_small_eigen = torch.sum(small_eigen)
+        writer.add_scalar('train/num_small_eigen', num_small_eigen.item(), epoch)
+        writer.add_scalar('train/loss', epoch_loss.avg, epoch)
 
-        # elapsed_time = time.time() - start_time
+        elapsed_time = time.time() - start_time
 
-        # main_logger.info(f'Training statistics:\tloss for epoch [{epoch}]: {epoch_loss.avg:.3f},'
-        #                  f'\ttime: {elapsed_time:.1f}, lr: {scheduler.get_last_lr()[0]:.6f}.')
+        main_logger.info(f'Training statistics:\tloss for epoch [{epoch}]: {epoch_loss.avg:.3f},'
+                         f'\ttime: {elapsed_time:.1f}, lr: {scheduler.get_last_lr()[0]:.6f}.')
 
         # validation loop, validation after each epoch
         main_logger.info("Validating...")
@@ -228,7 +228,7 @@ def validate(data_loader, model, device, writer, epoch, M, local):
                 else:
                     audio_embs = []
                     cap_embs = torch.empty(len(data_loader.dataset), caption_embeds.size(1)).cuda()
-            print(indexs)
+            # print(indexs)
             # print("embs:", audio_embs.shape)
             # print("embeds:", audio_embeds.shape)
             # print(audio_local_raw.shape)
@@ -246,10 +246,10 @@ def validate(data_loader, model, device, writer, epoch, M, local):
             for ele in audio_embs:
                 ele_pool = model.pool_frames(cap_embs, ele.cpu())
                 audio_embs_new.append(ele_pool)
-                print(ele_pool.shape)
+                # print(ele_pool.shape)
             audio_embs = torch.cat(audio_embs_new).cpu().numpy()
             cap_embs = cap_embs.cpu().numpy()
-            print("====>", audio_embs.shape)
+            # print("====>", audio_embs.shape)
         model = model.cuda()
         # M = torch.diag(L)
         # M = L
@@ -333,10 +333,10 @@ def validate_a2t(data_loader, model, device, L, local):
             for ele in audio_embs:
                 ele_pool = model.pool_frames(cap_embs, ele.cpu())
                 audio_embs_new.append(ele_pool)
-                print(ele_pool.shape)
+                # print(ele_pool.shape)
             audio_embs = torch.cat(audio_embs_new).cpu().numpy()
             cap_embs = cap_embs.cpu().numpy()
-            print("====>", audio_embs.shape)
+            # print("====>", audio_embs.shape)
         model = model.cuda()
 
         # evaluate audio to text retrieval
@@ -398,10 +398,10 @@ def validate_t2a(data_loader, model, device, L, local):
             for ele in audio_embs:
                 ele_pool = model.pool_frames(cap_embs, ele.cpu())
                 audio_embs_new.append(ele_pool)
-                print(ele_pool.shape)
+                # print(ele_pool.shape)
             audio_embs = torch.cat(audio_embs_new).cpu().numpy()
             cap_embs = cap_embs.cpu().numpy()
-            print("====>", audio_embs.shape)
+            # print("====>", audio_embs.shape)
         model = model.cuda()
 
         # evaluate text to audio retrieval
