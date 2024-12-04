@@ -186,7 +186,7 @@ def train(config):
     model.load_state_dict(best_checkpoint_t2a['model'])
     best_epoch_t2a = best_checkpoint_t2a['epoch']
     main_logger.info(f'Best checkpoint (Caption-to-audio) occurred in {best_epoch_t2a} th epoch.')
-    validate_t2a(test_loader, model, device, L=model.L, config.cnn_encoder.local)
+    validate_t2a(test_loader, model, device, L=model.L, local=config.cnn_encoder.local)
     main_logger.info('Evaluation done.')
     writer.close()
 
@@ -194,7 +194,7 @@ def train(config):
     model.load_state_dict(best_checkpoint_a2t['model'])
     best_epoch_a2t = best_checkpoint_a2t['epoch']
     main_logger.info(f'Best checkpoint (Audio-to-caption) occurred in {best_epoch_a2t} th epoch.')
-    validate_a2t(test_loader, model, device, L=model.L, config.cnn_encoder.local)
+    validate_a2t(test_loader, model, device, L=model.L, local=config.cnn_encoder.local)
 
     
 
