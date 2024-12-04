@@ -186,7 +186,7 @@ def train(config):
     model.load_state_dict(best_checkpoint_t2a['model'])
     best_epoch_t2a = best_checkpoint_t2a['epoch']
     main_logger.info(f'Best checkpoint (Caption-to-audio) occurred in {best_epoch_t2a} th epoch.')
-    validate_t2a(test_loader, model, device, L=model.L)
+    validate_t2a(test_loader, model, device, L=model.L, config.cnn_encoder.local)
     main_logger.info('Evaluation done.')
     writer.close()
 
@@ -194,7 +194,7 @@ def train(config):
     model.load_state_dict(best_checkpoint_a2t['model'])
     best_epoch_a2t = best_checkpoint_a2t['epoch']
     main_logger.info(f'Best checkpoint (Audio-to-caption) occurred in {best_epoch_a2t} th epoch.')
-    validate_a2t(test_loader, model, device, L=model.L)
+    validate_a2t(test_loader, model, device, L=model.L, config.cnn_encoder.local)
 
     
 
@@ -217,8 +217,10 @@ def validate(data_loader, model, device, writer, epoch, M, local):
             tokenized = tokenizer(captions, add_special_tokens=True,padding=True, return_tensors='pt')
             input_ids = tokenized['input_ids'].to(device)
             attention_mask = tokenized['attention_mask'].to(device)
-
-            audio_local_raw, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
+            if local:
+                audio_local_raw, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
+            else:
+                audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
             if audio_embs is None:
                 if len(audio_embeds.shape) == 2:
                     audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
@@ -248,7 +250,7 @@ def validate(data_loader, model, device, writer, epoch, M, local):
             audio_embs = torch.cat(audio_embs_new).cpu().numpy()
             cap_embs = cap_embs.cpu().numpy()
             print("====>", audio_embs.shape)
-        model = model.to(device)
+        model = model.cuda()
         # M = torch.diag(L)
         # M = L
         # evaluate text to audio retrieval
@@ -286,7 +288,7 @@ def validate(data_loader, model, device, writer, epoch, M, local):
                          t2a_metrics['r1'], t2a_metrics['r5'], t2a_metrics['r10'], t2a_metrics['median'], t2a_metrics['mean']))
         return r_sum_a2t, r_sum_t2a
 
-def validate_a2t(data_loader, model, device, L):
+def validate_a2t(data_loader, model, device, L, local):
     val_logger = logger.bind(indent=1)
     model.eval()
     a2t_metrics = {"r1":0, "r5":0, "r10":0, "mean":0, "median":0}
@@ -304,14 +306,38 @@ def validate_a2t(data_loader, model, device, L):
             tokenized = tokenizer(captions, add_special_tokens=True,padding=True, return_tensors='pt')
             input_ids = tokenized['input_ids'].to(device)
             attention_mask = tokenized['attention_mask'].to(device)
-            audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
-
+            if local:
+                audio_local_raw, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
+            else:
+                audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
             if audio_embs is None:
-                audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
-                cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                if len(audio_embeds.shape) == 2:
+                    audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
+                    cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                else:
+                    audio_embs = []
+                    cap_embs = torch.empty(len(data_loader.dataset), caption_embeds.size(1)).cuda()
+            # print(indexs)
 
-            audio_embs[indexs] = audio_embeds.cpu().numpy()
-            cap_embs[indexs] = caption_embeds.cpu().numpy()
+            if local:
+                audio_embs.append(audio_local_raw)
+                cap_embs[indexs] = caption_embeds
+            else:
+                audio_embs[indexs] = audio_embeds.cpu().numpy()
+                cap_embs[indexs] = caption_embeds.cpu().numpy()
+        
+        audio_embs_new = []
+        model = model.cpu()
+        if local:
+            cap_embs = cap_embs.cpu()
+            for ele in audio_embs:
+                ele_pool = model.pool_frames(cap_embs, ele.cpu())
+                audio_embs_new.append(ele_pool)
+                print(ele_pool.shape)
+            audio_embs = torch.cat(audio_embs_new).cpu().numpy()
+            cap_embs = cap_embs.cpu().numpy()
+            print("====>", audio_embs.shape)
+        model = model.cuda()
 
         # evaluate audio to text retrieval
         r1_a, r5_a, r10_a, r50_a, medr_a, meanr_a = a2t_ot(audio_embs, cap_embs, M)
@@ -326,7 +352,7 @@ def validate_a2t(data_loader, model, device, L):
                         'r10: {:.4f}, medr: {:.4f}, meanr: {:.4f}'.format(
                         a2t_metrics['r1'], a2t_metrics['r5'], a2t_metrics['r10'], a2t_metrics['median'], a2t_metrics['mean']))
         
-def validate_t2a(data_loader, model, device, L):
+def validate_t2a(data_loader, model, device, L, local):
     val_logger = logger.bind(indent=1)
     model.eval()
     t2a_metrics = {"r1":0, "r5":0, "r10":0, "mean":0, "median":0}
@@ -345,14 +371,38 @@ def validate_t2a(data_loader, model, device, L):
             tokenized = tokenizer(captions, add_special_tokens=True,padding=True, return_tensors='pt')
             input_ids = tokenized['input_ids'].to(device)
             attention_mask = tokenized['attention_mask'].to(device)
-            audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
-
+            if local:
+                audio_local_raw, audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
+            else:
+                audio_embeds, caption_embeds = model(audios, input_ids, attention_mask)
             if audio_embs is None:
-                audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
-                cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                if len(audio_embeds.shape) == 2:
+                    audio_embs = np.zeros((len(data_loader.dataset), audio_embeds.size(1)))
+                    cap_embs = np.zeros((len(data_loader.dataset), caption_embeds.size(1)))
+                else:
+                    audio_embs = []
+                    cap_embs = torch.empty(len(data_loader.dataset), caption_embeds.size(1)).cuda()
+            # print(indexs)
 
-            audio_embs[indexs] = audio_embeds.cpu().numpy()
-            cap_embs[indexs] = caption_embeds.cpu().numpy()
+            if local:
+                audio_embs.append(audio_local_raw)
+                cap_embs[indexs] = caption_embeds
+            else:
+                audio_embs[indexs] = audio_embeds.cpu().numpy()
+                cap_embs[indexs] = caption_embeds.cpu().numpy()
+        
+        audio_embs_new = []
+        model = model.cpu()
+        if local:
+            cap_embs = cap_embs.cpu()
+            for ele in audio_embs:
+                ele_pool = model.pool_frames(cap_embs, ele.cpu())
+                audio_embs_new.append(ele_pool)
+                print(ele_pool.shape)
+            audio_embs = torch.cat(audio_embs_new).cpu().numpy()
+            cap_embs = cap_embs.cpu().numpy()
+            print("====>", audio_embs.shape)
+        model = model.cuda()
 
         # evaluate text to audio retrieval
         r1, r5, r10, r50, medr, meanr = t2a_ot(audio_embs, cap_embs, M)
